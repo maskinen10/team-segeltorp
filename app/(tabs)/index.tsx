@@ -1,185 +1,242 @@
-```tsx
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { Plus, TrendingUp, Car, Clock } from 'lucide-react-native';
-import { Link } from 'expo-router';
-import { useSalesStore } from '@/stores/sales-store';
-import { useAuthStore } from '@/stores/auth-store';
-import Colors from '@/constants/colors';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFinanceStore } from '@/store/finance-store';
+import { BalanceCard } from '@/components/BalanceCard';
+import { TransactionItem } from '@/components/TransactionItem';
+import { BudgetCard } from '@/components/BudgetCard';
+import { GoalCard } from '@/components/GoalCard';
+import { colors } from '@/constants/colors';
+import { Transaction } from '@/types/finance';
+import { ChevronRight, Plus } from 'lucide-react-native';
+import { router } from 'expo-router';
 
-export default function DashboardScreen() {
-  const { sales } = useSalesStore();
-  const { user } = useAuthStore();
-
-  // Filtrera försäljningar för inloggad användare
-  const userSales = sales.filter(sale => sale.salesPersonId === user?.id);
+export default function HomeScreen() {
+  const { 
+    transactions, 
+    budgets, 
+    goals,
+    getTotalIncome,
+    getTotalExpenses,
+    getBalance
+  } = useFinanceStore();
   
-  // Beräkna försäljning för aktuell månad
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const recentTransactions = transactions.slice(0, 5);
   
-  const monthlySales = userSales.filter(sale => {
-    const saleDate = new Date(sale.date);
-    return saleDate.getMonth() === currentMonth && 
-           saleDate.getFullYear() === currentYear;
-  });
-
-  const totalSalesThisMonth = monthlySales.length;
-  const progress = (totalSalesThisMonth / 20) * 100; // 20 bilar är målet per säljare
-
-  const newCarSales = userSales.filter(sale => sale.carType === 'new').length;
-  const usedCarSales = userSales.filter(sale => sale.carType === 'used').length;
-
+  const handleTransactionPress = (transaction: Transaction) => {
+    // Navigate to transaction details
+    router.push({
+      pathname: '/transaction/[id]',
+      params: { id: transaction.id }
+    });
+  };
+  
+  const handleAddTransaction = () => {
+    router.push('/add');
+  };
+  
+  const handleViewAllTransactions = () => {
+    router.push('/transactions');
+  };
+  
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Försäljningsdashboard
-        <Text style={styles.subtitle}>Välkommen {user?.name || 'Säljare'}
-      
-
-      <View style={styles.statsCard}>
-        <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Månadens försäljning
-          <Text style={styles.statValue}>{totalSalesThisMonth}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Hello there!</Text>
+          <Text style={styles.subtitle}>Welcome to Spendwise</Text>
+        </View>
         
+        <BalanceCard 
+          balance={getBalance()}
+          income={getTotalIncome()}
+          expenses={getTotalExpenses()}
+        />
         
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        
-        
-        <Text style={styles.goalText}>
-          Ditt mål: {totalSalesThisMonth}/20 bilar
-        
-      
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statsGridItem}>
-          <Car size={24} color={Colors.light.text} />
-          <Text style={styles.statsGridValue}>{newCarSales}
-          <Text style={styles.statsGridLabel}>Nya bilar
-        
-        
-        <View style={styles.statsGridItem}>
-          <Clock size={24} color={Colors.light.text} />
-          <Text style={styles.statsGridValue}>{usedCarSales}
-          <Text style={styles.statsGridLabel}>Begagnade bilar
-        
-      
-
-      <View style={styles.quickActions}>
-        <Link href="/new-sale" asChild>
-          <Pressable style={styles.actionButton}>
-            <Plus size={24} color={Colors.light.text} />
-            <Text style={styles.actionText}>Ny försäljning
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <Pressable onPress={handleViewAllTransactions} style={styles.viewAll}>
+              <Text style={styles.viewAllText}>View all</Text>
+              <ChevronRight size={16} color={colors.primary} />
+            </Pressable>
+          </View>
           
+          {recentTransactions.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {recentTransactions.map(transaction => (
+                <TransactionItem 
+                  key={transaction.id} 
+                  transaction={transaction}
+                  onPress={handleTransactionPress}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No transactions yet</Text>
+              <Pressable 
+                style={styles.addButton}
+                onPress={handleAddTransaction}
+              >
+                <Plus size={16} color={colors.background} />
+                <Text style={styles.addButtonText}>Add Transaction</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
         
-        
-        <Link href="/stats" asChild>
-          <Pressable style={styles.actionButton}>
-            <TrendingUp size={24} color={Colors.light.text} />
-            <Text style={styles.actionText}>Visa statistik
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Budget Overview</Text>
+            <Pressable onPress={() => router.push('/budgets')} style={styles.viewAll}>
+              <Text style={styles.viewAllText}>View all</Text>
+              <ChevronRight size={16} color={colors.primary} />
+            </Pressable>
+          </View>
           
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.budgetsContainer}
+          >
+            {budgets.slice(0, 3).map(budget => (
+              <View key={budget.id} style={styles.budgetCardWrapper}>
+                <BudgetCard budget={budget} />
+              </View>
+            ))}
+            <Pressable 
+              style={styles.addBudgetCard}
+              onPress={() => router.push('/budget/new')}
+            >
+              <Plus size={24} color={colors.primary} />
+              <Text style={styles.addBudgetText}>Add Budget</Text>
+            </Pressable>
+          </ScrollView>
+        </View>
         
-      
-    
+        <View style={[styles.section, styles.lastSection]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Financial Goals</Text>
+            <Pressable onPress={() => router.push('/goals')} style={styles.viewAll}>
+              <Text style={styles.viewAllText}>View all</Text>
+              <ChevronRight size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+          
+          {goals.slice(0, 2).map(goal => (
+            <GoalCard key={goal.id} goal={goal} />
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
-    padding: 16,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
+  greeting: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
-    marginTop: 4,
+    color: colors.textSecondary,
+    marginBottom: 16,
   },
-  statsCard: {
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 16,
-    margin: 16,
-    marginTop: 0,
+  section: {
+    marginBottom: 24,
   },
-  statRow: {
+  lastSection: {
+    paddingBottom: 32,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
-  statLabel: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  viewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginRight: 4,
+  },
+  transactionsList: {
+    paddingHorizontal: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  emptyStateText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
+    marginBottom: 16,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    marginVertical: 8,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.light.tint,
-    borderRadius: 4,
-  },
-  goalText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'right',
-  },
-  statsGrid: {
+  addButton: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 16,
-  },
-  statsGridItem: {
-    flex: 1,
-    backgroundColor: Colors.light.card,
-    borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  statsGridValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.light.text,
+  addButtonText: {
+    color: colors.background,
+    fontWeight: '600',
+    marginLeft: 8,
   },
-  statsGridLabel: {
-    fontSize: 14,
-    color: '#666',
+  budgetsContainer: {
+    paddingLeft: 16,
+    paddingRight: 8,
   },
-  quickActions: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+  budgetCardWrapper: {
+    width: 280,
+    marginRight: 12,
   },
-  actionButton: {
-    flex: 1,
-    backgroundColor: Colors.light.card,
-    padding: 16,
+  addBudgetCard: {
+    width: 140,
+    height: 140,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    marginRight: 16,
+    backgroundColor: colors.background,
   },
-  actionText: {
-    fontSize: 14,
-    color: Colors.light.text,
+  addBudgetText: {
+    color: colors.primary,
     fontWeight: '500',
+    marginTop: 8,
   },
 });
-```
